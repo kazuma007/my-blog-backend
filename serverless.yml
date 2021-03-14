@@ -58,17 +58,23 @@ package:
     - ./bin/**
 
 functions:
-  get:
-    handler: bin/get
+  get-article:
+    handler: bin/get/article
     events:
       - httpApi:
-          path: /get
+          path: /get/article
           method: get
-  post:
-    handler: bin/post
+  post-article:
+    handler: bin/post/article
     events:
       - httpApi:
-          path: /post
+          path: /post/article
+          method: post
+  post-tag:
+    handler: bin/post/tag
+    events:
+      - httpApi:
+          path: /post/tag
           method: post
 #    The following are a few example events you can configure
 #    NOTE: Please make sure to change your handler code to work with those events
