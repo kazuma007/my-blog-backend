@@ -64,6 +64,12 @@ functions:
       - httpApi:
           path: /get/article
           method: get
+  get-tag:
+    handler: bin/get/tag
+    events:
+      - httpApi:
+          path: /get/tag
+          method: get
   post-article:
     handler: bin/post/article
     events:
