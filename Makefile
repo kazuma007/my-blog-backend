@@ -2,6 +2,7 @@
 
 build:
 	dep ensure -v
+	env GOOS=linux go build -ldflags="-s -w" -o bin/get/articles get/articles/main.go
 	env GOOS=linux go build -ldflags="-s -w" -o bin/get/article get/article/main.go
 	env GOOS=linux go build -ldflags="-s -w" -o bin/get/tag get/tag/main.go
 	env GOOS=linux go build -ldflags="-s -w" -o bin/post/article post/article/main.go

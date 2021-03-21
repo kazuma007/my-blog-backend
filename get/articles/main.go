@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 
@@ -14,6 +15,12 @@ import (
 	"github.com/kelseyhightower/envconfig"
 )
 
+// Response is of type APIGatewayProxyResponse since we're leveraging the
+// AWS Lambda Proxy Request functionality (default behavior)
+//
+// https://serverless.com/framework/docs/providers/aws/events/apigateway/#lambda-proxy-integration
+type Response events.APIGatewayProxyResponse
+
 type Env struct {
 	S3AK string
 	S3SK string
@@ -26,11 +33,12 @@ type ResponseData struct {
 	RegisteredTime string `json:"registered_time", dynamodbav:"registered_time"`
 }
 
-func Handler(request events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {
+// Handler is our lambda handler invoked by the `lambda.Start` function call
+func Handler(ctx context.Context) (Response, error) {
 	var env Env
 	if err := envconfig.Process("", &env); err != nil {
 		fmt.Println("envconfig error", err)
-		return events.APIGatewayProxyResponse{StatusCode: 500}, err
+		return Response{StatusCode: 500}, err
 	}
 
 	sess := session.Must(session.NewSession(&aws.Config{
@@ -40,42 +48,37 @@ func Handler(request events.APIGatewayProxyRequest) (events.APIGatewayProxyRespo
 
 	svc := dynamodb.New(sess)
 
-	key := request.QueryStringParameters["key"]
-
-	params := &dynamodb.GetItemInput{
+	params := &dynamodb.ScanInput{
 		TableName: aws.String("my-blog-t"),
-		Key: map[string]*dynamodb.AttributeValue{
-			"storage_key": {
-				S: aws.String(key),
-			},
-		},
+		Limit:     aws.Int64(50),
 	}
 
-	result, err := svc.GetItem(params)
+	result, err := svc.Scan(params)
 	if err != nil {
 		fmt.Println("dynamoDB scan error", err)
-		return events.APIGatewayProxyResponse{StatusCode: 500}, err
+		return Response{StatusCode: 500}, err
 	}
 
-	var responseData ResponseData
-	dynamodbattribute.UnmarshalMap(result.Item, &responseData)
+	var responseData []ResponseData
+	dynamodbattribute.UnmarshalListOfMaps(result.Items, &responseData)
 
 	jsonResponse, err := json.Marshal(responseData)
 	if err != nil {
 		fmt.Println("json marshal error", err)
-		return events.APIGatewayProxyResponse{StatusCode: 500}, err
+		return Response{StatusCode: 500}, err
 	}
 
-	return events.APIGatewayProxyResponse{
-		Headers: map[string]string{
-			"Access-Control-Allow-Origin":  "*",
-			"Access-Control-Allow-Headers": "origin,Accept,Authorization,Content-Type",
-			"Content-Type":                 "application/json",
-		},
-		Body:            string(jsonResponse),
-		IsBase64Encoded: false,
+	resp := Response{
 		StatusCode:      200,
-	}, nil
+		IsBase64Encoded: false,
+		Body:            string(jsonResponse),
+		Headers: map[string]string{
+			"Content-Type":           "application/json",
+			"X-MyCompany-Func-Reply": "hello-handler",
+		},
+	}
+
+	return resp, nil
 }
 
 func main() {
