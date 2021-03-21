@@ -91,6 +91,9 @@ func updateDynamoDB(requestBody *RequestBody, createdId string, sess *session.Se
 			"storage_key": {
 				S: aws.String(createdId + "." + slice[1]),
 			},
+			"filename": {
+				S: aws.String(createdId),
+			},
 			"title": {
 				S: aws.String(requestBody.Title),
 			},
