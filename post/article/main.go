@@ -1,11 +1,8 @@
 package main
 
 import (
-	"bytes"
-	"encoding/base64"
 	"encoding/json"
 	"fmt"
-	"strings"
 	"time"
 
 	"github.com/aws/aws-lambda-go/events"
@@ -14,7 +11,6 @@ import (
 	"github.com/aws/aws-sdk-go/aws/credentials"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/dynamodb"
-	"github.com/aws/aws-sdk-go/service/s3/s3manager"
 	"github.com/google/uuid"
 	"github.com/kelseyhightower/envconfig"
 )
@@ -27,7 +23,6 @@ type Env struct {
 type RequestBody struct {
 	Title     string `json:"title"`
 	Content   string `json:"content"`
-	File      string `json:"file"`
 	Extension string `json:"extension"`
 }
 
@@ -56,13 +51,6 @@ func Handler(request events.APIGatewayProxyRequest) (events.APIGatewayProxyRespo
 		return events.APIGatewayProxyResponse{}, nil
 	}
 
-	if len(requestBody.File) != 0 {
-		if err := updateS3(requestBody, createdId, sess); err != nil {
-			fmt.Println("updateS3 error", err)
-			return events.APIGatewayProxyResponse{}, nil
-		}
-	}
-
 	return events.APIGatewayProxyResponse{
 		Headers: map[string]string{
 			"Access-Control-Allow-Origin":  "*",
@@ -77,8 +65,6 @@ func Handler(request events.APIGatewayProxyRequest) (events.APIGatewayProxyRespo
 func updateDynamoDB(requestBody *RequestBody, createdId string, sess *session.Session) error {
 	svc := dynamodb.New(sess)
 
-	slice := strings.Split(requestBody.Extension, "/")
-
 	time.Local = time.FixedZone("Asia/Tokyo", 9*60*60)
 	time.LoadLocation("Asia/Tokyo")
 	t := time.Now()
@@ -89,9 +75,6 @@ func updateDynamoDB(requestBody *RequestBody, createdId string, sess *session.Se
 		TableName: aws.String("my-blog-t"),
 		Item: map[string]*dynamodb.AttributeValue{
 			"storage_key": {
-				S: aws.String(createdId + "." + slice[1]),
-			},
-			"filename": {
 				S: aws.String(createdId),
 			},
 			"title": {
@@ -107,36 +90,6 @@ func updateDynamoDB(requestBody *RequestBody, createdId string, sess *session.Se
 	}
 
 	if _, err := svc.PutItem(putParams); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func updateS3(requestBody *RequestBody, createdId string, sess *session.Session) error {
-	uploader := s3manager.NewUploader(sess)
-
-	data, err := base64.StdEncoding.DecodeString(requestBody.File[strings.IndexByte(requestBody.File, ',')+1:])
-
-	if err != nil {
-		return err
-	}
-
-	wb := new(bytes.Buffer)
-	wb.Write(data)
-
-	slice := strings.Split(requestBody.Extension, "/")
-
-	bucketName := "my-blog-storage"
-	_, err = uploader.Upload(&s3manager.UploadInput{
-		Bucket:      aws.String(bucketName),
-		Key:         aws.String(createdId + "." + slice[1]),
-		Body:        wb,
-		ContentType: aws.String(requestBody.Extension),
-		ACL:         aws.String("public-read"),
-	})
-
-	if err != nil {
 		return err
 	}
 

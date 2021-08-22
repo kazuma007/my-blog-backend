@@ -5,3 +5,10 @@ Personal blog project with Go.
 ## Technologies
 * Go
 * Serverless Framework
+
+## To deploy
+
+```
+$ make
+$ sls deploy
+```

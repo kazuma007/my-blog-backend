@@ -21,7 +21,6 @@ type Env struct {
 
 type ResponseData struct {
 	Key            string `json:"storage_key", dynamodbav:"storage_key"`
-	Filename       string `json:"filename", dynamodbav:"filename"`
 	Title          string `json:"title", dynamodbav:"title"`
 	Content        string `json:"content", dynamodbav:"content"`
 	RegisteredTime string `json:"registered_time", dynamodbav:"registered_time"`
